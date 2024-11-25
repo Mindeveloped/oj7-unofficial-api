@@ -1,5 +1,6 @@
 import pycurl as c
 import json
+import time
 from urllib.parse import urlencode
 
 curl = c.Curl()
@@ -33,7 +34,7 @@ class ProblemSetup:
 
 class Problem:
     def __init__(self, id, /, title = "致敬传奇特级作弊大师 1_2_3_4_5_9 取得 2150 rating", 
-                description = "test problem", input_format = "", output_format = "",
+                description = "test problem will delete in 5 mins", input_format = "", output_format = "",
                 example = "", limit_and_hint = "", additional_file_id = "",
                 ac_num = 0, submit_num = 0, is_public = 1, file_io = 0,
                 file_io_input_name = "", file_io_output_name = "",
@@ -69,7 +70,6 @@ class Problem:
         }
         return result
 
-
 class OJ7Local:
     def __init__(self):
         self.cookie = ""
@@ -91,6 +91,23 @@ class OJ7Local:
         curl.setopt (c.POSTFIELDS, urlencode(form_data))
         return curl.perform ()
     
+    def resurrect (self, /, prob_id="", user_id="", lang="", status=""):
+        self.post ("/admin/restart")
+        time.sleep(10) # Wish this does not cause disaster
+        self.post ("/admin/rejudge", {
+            "type": "rejudge",
+            "problem_id": prob_id,
+            "submitter": user_id,
+            "language": lang,
+            "status": status,
+            "min_id": "",
+            "min_score": "",
+            "min_time": "1970-01-01+8:00:00",
+            "max_id": "",
+            "max_score": "",
+            "max_time": "2038-01-19+11:14:07"
+        })
+
     def create_problem (self, problem):
         return self.post (f"/problem/0/edit", problem.pack ())
 
@@ -99,4 +116,4 @@ class OJ7Local:
 
 if __name__ == "__main__":
     oj7 = OJ7Local ()
-    oj7.load_config ("config.json")
+    oj7.load_config ("config2.json")
