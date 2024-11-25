@@ -83,14 +83,23 @@ class OJ7Local:
             # Load configuration
             self.COOKIE = config["COOKIE"]
             self.OJ7_URL = config["OJ7_URL"]
-        
+
     def post(self, url, form_data = {}):
         curl.reset ()
         curl.setopt (c.URL, self.OJ7_URL+url)
         curl.setopt (c.COOKIE, self.COOKIE)
         curl.setopt (c.POSTFIELDS, urlencode(form_data))
-        return curl.perform ()
-    
+        okay = False
+        result = None
+        while not okay:
+            try:
+                result = curl.perform ()
+                okay = True
+            except c.error as e:
+                print (f"Encountered error when executing POST {url}: {e}")
+                okay = False
+        return result
+
     def resurrect (self, /, prob_id="", user_id="", lang="", status=""):
         self.post ("/admin/restart")
         time.sleep(10) # Wish this does not cause disaster
