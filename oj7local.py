@@ -2,73 +2,44 @@ import pycurl as c
 import json
 import time
 from urllib.parse import urlencode
+from io import BytesIO as by
 
 curl = c.Curl()
 
-class ProblemStatistics:
-    def __init__ (self, /, ac_num = 0, submit_num = 0):
-        self.ac_num = ac_num
-        self.submit_num = submit_num
-
-class ProblemStatement:
-    def __init__ (self, /, title = "", description = "", input_format = "", 
-                  output_format = "", example = "", limit_and_hint = "",
-                  additional_file_id = ""):
+class Problem:
+    def __init__ (self, /, id=123459, title = "致敬传奇特级作弊大师 1_2_3_4_5_9 取得 2150 rating", description = "", input_format = "", 
+                  output_format = "", example = "", limit_and_hint = "", tags=[]):
+        self.id = id
         self.title = title
         self.description = description
         self.input_format = input_format
         self.output_format = output_format
         self.example = example
         self.limit_and_hint = limit_and_hint
-        self.additional_file_id = additional_file_id
-
-class ProblemSetup:
-    def __init__(self, /, time_limit = 1000, memory_limit = 524288, is_public = 1, 
-                file_io = 0, file_io_input_name = "", file_io_output_name = ""):
-        self.time_limit = time_limit
-        self.memory_limit = memory_limit
-        self.is_public = is_public
-        self.file_io = file_io
-        self.file_io_input_name = file_io_input_name
-        self.file_io_output_name = file_io_output_name
-
-class Problem:
-    def __init__(self, id, /, title = "致敬传奇特级作弊大师 1_2_3_4_5_9 取得 2150 rating", 
-                description = "test problem will delete in 5 mins", input_format = "", output_format = "",
-                example = "", limit_and_hint = "", additional_file_id = "",
-                ac_num = 0, submit_num = 0, is_public = 1, file_io = 0,
-                file_io_input_name = "", file_io_output_name = "",
-                time_limit = 1000, memory_limit = 524288):
-        self.id = id
-        self.setup = ProblemSetup(time_limit=time_limit,memory_limit=memory_limit,
-                                  is_public=is_public,file_io=file_io,
-                                  file_io_input_name=file_io_input_name,
-                                  file_io_output_name=file_io_output_name)
-        self.statement = ProblemStatement(title=title,description=description,input_format=input_format,
-                                    output_format=output_format, limit_and_hint=limit_and_hint,
-                                    additional_file_id=additional_file_id,example=example)
-        self.stats = ProblemStatistics(ac_num=ac_num,submit_num=submit_num)
+        self.tags = []
 
     def pack (self):
         result = {
             "id": self.id,
-            "title": self.statement.title,
-            "description": self.statement.description,
-            "input_format": self.statement.input_format,
-            "output_format": self.statement.output_format,
-            "example": self.statement.example,
-            "limit_and_hint": self.statement.limit_and_hint,
-            "additional_file_id": self.statement.additional_file_id,
-            "ac_num": self.stats.ac_num,
-            "submit_num": self.stats.submit_num,
-            "is_public": self.setup.is_public,
-            "file_io": self.setup.file_io,
-            "file_io_input_name": self.setup.file_io_input_name,
-            "file_io_output_name": self.setup.file_io_output_name,
-            "time_limit": self.setup.time_limit,
-            "memory_limit": self.setup.memory_limit
+            "title": self.title,
+            "description": self.description,
+            "input_format": self.input_format,
+            "output_format": self.output_format,
+            "example": self.example,
+            "limit_and_hint": self.limit_and_hint,
+            "tags": self.tags
         }
         return result
+
+def unroll_fd (raw_data):
+    form_data = []
+    for i in raw_data.keys ():
+        if type(raw_data[i]) == list:
+            for j in raw_data[i]:
+                form_data.append ((i, j))
+        else:
+            form_data.append ((i, raw_data[i]))
+    return form_data
 
 class OJ7Local:
     def __init__(self):
@@ -81,14 +52,14 @@ class OJ7Local:
             config = json.load(config_file)
             
             # Load configuration
-            self.COOKIE = config["COOKIE"]
             self.OJ7_URL = config["OJ7_URL"]
+            self.COOKIE = config["COOKIE"]
 
-    def post(self, url, form_data = {}):
+    def post(self, url, form_data = []):
         curl.reset ()
         curl.setopt (c.URL, self.OJ7_URL+url)
         curl.setopt (c.COOKIE, self.COOKIE)
-        curl.setopt (c.POSTFIELDS, urlencode(form_data))
+        curl.setopt (c.POSTFIELDS, urlencode(unroll_fd(form_data)))
         okay = False
         result = None
         while not okay:
@@ -97,7 +68,6 @@ class OJ7Local:
                 okay = True
             except c.error as e:
                 print (f"Encountered error when executing POST {url}: {e}")
-                okay = False
         return result
 
     def resurrect (self, /, prob_id="", user_id="", lang="", status=""):
