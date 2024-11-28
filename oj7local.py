@@ -2,9 +2,7 @@ import pycurl as c
 import json
 import time
 from urllib.parse import urlencode
-from io import BytesIO as by
-
-curl = c.Curl()
+from io import BytesIO as bio
 
 class Problem:
     def __init__ (self, /, id=123459, title = "致敬传奇特级作弊大师 1_2_3_4_5_9 取得 2150 rating", description = "", input_format = "", 
@@ -55,24 +53,34 @@ class OJ7Local:
             self.OJ7_URL = config["OJ7_URL"]
             self.COOKIE = config["COOKIE"]
 
-    def post(self, url, form_data = []):
-        curl.reset ()
-        curl.setopt (c.URL, self.OJ7_URL+url)
-        curl.setopt (c.COOKIE, self.COOKIE)
-        curl.setopt (c.POSTFIELDS, urlencode(unroll_fd(form_data)))
+    def post(self, url, form_data = {}):
         okay = False
+        tries = 5
         result = None
-        while not okay:
+        while not okay and tries > 0:
+            curl = c.Curl()
+            curl.setopt (c.VERBOSE, True)
+            curl.setopt (c.URL, self.OJ7_URL+url)
+            curl.setopt (c.COOKIE, self.COOKIE)
+            curl.setopt (c.POSTFIELDS, urlencode(unroll_fd(form_data)))
+            rbuf = bio()
+            curl.setopt(curl.WRITEDATA, rbuf)
             try:
-                result = curl.perform ()
+                curl.perform ()
                 okay = True
+                result = rbuf.read ()
             except c.error as e:
                 print (f"Encountered error when executing POST {url}: {e}")
+                tries -= 1
+                print (f"Retrying {tries}")
+            curl.close ()
+            rbuf.close ()
+        if not okay:
+            print ("Failure when executing POST")
         return result
-
+        
     def resurrect (self, /, prob_id="", user_id="", lang="", status=""):
         self.post ("/admin/restart")
-        time.sleep(10) # Wish this does not cause disaster
         self.post ("/admin/rejudge", {
             "type": "rejudge",
             "problem_id": prob_id,
@@ -88,10 +96,10 @@ class OJ7Local:
         })
 
     def create_problem (self, problem):
-        return self.post (f"/problem/0/edit", problem.pack ())
-
+        self.post (f"/problem/0/edit", problem.pack ())
+        
     def delete_problem (self, problem_id):
-        return self.post (f"/problem/{problem_id}/delete")
+        self.post (f"/problem/{problem_id}/delete")
 
 if __name__ == "__main__":
     oj7 = OJ7Local ()
